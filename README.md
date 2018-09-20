@@ -5,5 +5,7 @@ Asheville Community Data Library - An Experiment
 
 ## Datasets
 - [Buncombe County Court Data](./buncombe-county-courts)
+- [Census Data Maps](./census-data-maps)
+
 
 
