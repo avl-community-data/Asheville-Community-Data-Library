@@ -3,7 +3,7 @@ title: "README"
 output: md_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 One of the best packages for pulling census data is `tidycensus`.  Other useful packages include `here` for file directory support, `tidyverse` for data manipulation, and `ggplot` for graphs.
 
-```{r packages}
+```{r packages, message = FALSE}
 library(here)
 library(tidyverse)
 
@@ -27,7 +27,7 @@ library(sf)
 
 ## Setup
 
-The following code sets up a blank theme so the maps look better and pulls in the county list to limit the data collection to western North Carolina.
+The following code sets up a blank theme so the maps look better and pulls in the county list to limit the data collection to western North Carolina.  You can view the list of in the csv listed above this tutorial.
 
 ```{r setup2}
 ## Null Theme
@@ -90,9 +90,15 @@ get_vars$label <- gsub(" ", "_", get_vars$label)
 get_vars$concept <- gsub(" ", "_", get_vars$concept)
 get_vars$label <- paste(get_vars$concept, get_vars$label, sep = "_")
 get_vars$concept <- NULL
+
+get_vars
 ```
 
-```{r population}
+## Pull data
+
+The following code pulls the data from the census.  For North Carolina, the the STATE value is 37.  The zcta_county_rel_10.txt file came from the census website [here](https://www.census.gov/geo/maps-data/data/zcta_rel_layout.html).  More information about zip code tabulation area can be found [here](https://www.census.gov/geo/reference/zctas.html).
+
+```{r population, message = FALSE}
 ## ZCTA
 # Close to Zip Code
 zcta_county_match <- read.table(here::here("census", "Access", "R", "zcta_county_rel_10.txt"), # Get this file from census website
@@ -101,14 +107,10 @@ zcta_county_match <- read.table(here::here("census", "Access", "R", "zcta_county
 zcta_county_match <- zcta_county_match[zcta_county_match$STATE == 37 &
                                          zcta_county_match$COUNTY %in% counties$COUNTYFP, ]
 
-start_time <- Sys.time()
 wnc_zcta_data <- get_acs(geography = "zip code tabulation area",
                                variables = get_vars$name,
                                geometry = TRUE,
                                output = "wide")
-Sys.time() - start_time
-# 2 mins
-
 wnc_zcta_data <- wnc_zcta_data[wnc_zcta_data$GEOID %in% zcta_county_match$ZCTA5,
                                            names(wnc_zcta_data) %in% c("NAME", "GEOID", "geometry", get_vars$name)]
 
@@ -122,7 +124,9 @@ wnc_county_data <- reduce(
 )
 
 wnc_county_data <- wnc_county_data[, names(wnc_county_data) %in% c("NAME", "GEOID", "geometry", get_vars$name)]
+```
 
+```{r base_maps}
 ### Investigate
 
 # Base Maps
@@ -130,24 +134,8 @@ ggplot() +
   geom_sf(data = wnc_county_data, col = "darkblue", fill = NA, lwd = 1.5) +
   geom_sf(data = wnc_zcta_data, col = "darkred", fill = NA) +
   ggtitle("Base Map") +
-  theme_null()
-
-# leaflet() %>%
-#   addProviderTiles(provider = "CartoDB.Positron") %>%
-#   addPolygons(data = wnc_county_data,
-#               popup = ~ str_extract(NAME, "^([^,]*)"),
-#               stroke = TRUE,
-#               smoothFactor = .5,
-#               fillColor = "white",
-#               color = "darkblue",
-#               weight = 2) %>%
-#   addPolygons(data = wnc_zcta_data,
-#               popup = ~ str_extract(NAME, "^([^,]*)"),
-#               stroke = TRUE,
-#               smoothFactor = .5,
-#               fillColor = "white",
-#               color = "darkred",
-#               weight = 1)
+  theme_null() +
+  labs(caption = "Counties are thick dark blue lines.\nZCTA are thin red lines.")
 
 ## Total Population
 # Add in Density
@@ -166,7 +154,7 @@ county_1 <- ggplot() +
                          labels = comma) +
   scale_fill_continuous(name = "Total Population",
                         labels = comma) +
-  theme(legend.position = c(.25, .75)) +
+  theme(legend.position = c(0, 1)) +
   theme_null()
 
 county_2 <- ggplot() +
@@ -186,7 +174,7 @@ zcta_1 <- ggplot() +
                          labels = comma) +
   scale_fill_continuous(name = "Total Population",
                         labels = comma) +
-  theme(legend.position = c(.25, .75)) +
+  theme(legend.position = c(0, 1)) +
   theme_null()
 
 zcta_2 <- ggplot() +
@@ -195,7 +183,7 @@ zcta_2 <- ggplot() +
                          labels = comma) +  
   scale_fill_continuous(name = "Population Density",
                         labels = comma) +  
-  theme(legend.position = c(.25, .75)) +  
+  theme(legend.position = c(0, 1)) +  
   theme_null()
 
 plot_grid(zcta_1, zcta_2)

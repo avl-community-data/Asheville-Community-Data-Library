@@ -6,62 +6,24 @@ useful packages include `here` for file directory support, `tidyverse`
 for data manipulation, and `ggplot` for graphs.
 
     library(here)
-
-    ## here() starts at C:/Users/wtbra/Documents/github_repos/Asheville-Community-Data-Library
-
     library(tidyverse)
-
-    ## -- Attaching packages --------------------------------------------------------- tidyverse 1.2.1 --
-
-    ## v ggplot2 3.0.0     v purrr   0.2.5
-    ## v tibble  1.4.2     v dplyr   0.7.6
-    ## v tidyr   0.8.1     v stringr 1.3.1
-    ## v readr   1.1.1     v forcats 0.3.0
-
-    ## -- Conflicts ------------------------------------------------------------ tidyverse_conflicts() --
-    ## x dplyr::filter() masks stats::filter()
-    ## x dplyr::lag()    masks stats::lag()
 
     library(tidycensus)
     options(tigris_use_cache = TRUE)
 
     library(scales)
-
-    ## 
-    ## Attaching package: 'scales'
-
-    ## The following object is masked from 'package:purrr':
-    ## 
-    ##     discard
-
-    ## The following object is masked from 'package:readr':
-    ## 
-    ##     col_factor
-
     library(leaflet)
     library(cowplot)
-
-    ## 
-    ## Attaching package: 'cowplot'
-
-    ## The following object is masked from 'package:ggplot2':
-    ## 
-    ##     ggsave
-
     library(units)
-
-    ## udunits system database from C:/Users/wtbra/Documents/R/win-library/3.5/units/share/udunits
-
     library(sf)
-
-    ## Linking to GEOS 3.6.1, GDAL 2.2.3, proj.4 4.9.3
 
 Setup
 -----
 
 The following code sets up a blank theme so the maps look better and
 pulls in the county list to limit the data collection to western North
-Carolina.
+Carolina. You can view the list of in the csv listed above this
+tutorial.
 
     ## Null Theme
     theme_null <- function() {
@@ -126,6 +88,31 @@ Here are all the available variables.
     get_vars$label <- paste(get_vars$concept, get_vars$label, sep = "_")
     get_vars$concept <- NULL
 
+    get_vars
+
+    ##           name label
+    ## 1  B01003_001E NA_NA
+    ## 2  B02001_001E NA_NA
+    ## 3  B03002_003E NA_NA
+    ## 4  B03002_004E NA_NA
+    ## 5  B03002_005E NA_NA
+    ## 6  B03002_006E NA_NA
+    ## 7  B03002_007E NA_NA
+    ## 8  B03002_008E NA_NA
+    ## 9  B03002_010E NA_NA
+    ## 10 B03002_011E NA_NA
+    ## 11 B03002_012E NA_NA
+
+Pull data
+---------
+
+The following code pulls the data from the census. For North Carolina,
+the the STATE value is 37. The zcta\_county\_rel\_10.txt file came from
+the census website
+[here](https://www.census.gov/geo/maps-data/data/zcta_rel_layout.html).
+More information about zip code tabulation area can be found
+[here](https://www.census.gov/geo/reference/zctas.html).
+
     ## ZCTA
     # Close to Zip Code
     zcta_county_match <- read.table(here::here("census", "Access", "R", "zcta_county_rel_10.txt"), # Get this file from census website
@@ -134,20 +121,10 @@ Here are all the available variables.
     zcta_county_match <- zcta_county_match[zcta_county_match$STATE == 37 &
                                              zcta_county_match$COUNTY %in% counties$COUNTYFP, ]
 
-    start_time <- Sys.time()
     wnc_zcta_data <- get_acs(geography = "zip code tabulation area",
                                    variables = get_vars$name,
                                    geometry = TRUE,
                                    output = "wide")
-
-    ## Getting data from the 2012-2016 5-year ACS
-
-    Sys.time() - start_time
-
-    ## Time difference of 27.5495 secs
-
-    # 2 mins
-
     wnc_zcta_data <- wnc_zcta_data[wnc_zcta_data$GEOID %in% zcta_county_match$ZCTA5,
                                                names(wnc_zcta_data) %in% c("NAME", "GEOID", "geometry", get_vars$name)]
 
@@ -160,36 +137,6 @@ Here are all the available variables.
       rbind
     )
 
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-    ## Getting data from the 2012-2016 5-year ACS
-
     wnc_county_data <- wnc_county_data[, names(wnc_county_data) %in% c("NAME", "GEOID", "geometry", get_vars$name)]
 
     ### Investigate
@@ -199,26 +146,10 @@ Here are all the available variables.
       geom_sf(data = wnc_county_data, col = "darkblue", fill = NA, lwd = 1.5) +
       geom_sf(data = wnc_zcta_data, col = "darkred", fill = NA) +
       ggtitle("Base Map") +
-      theme_null()
+      theme_null() +
+      labs(caption = "Counties are thick dark blue lines.\nZCTA are thin red lines.")
 
-![](README_files/figure-markdown_strict/population-1.png)
-
-    # leaflet() %>%
-    #   addProviderTiles(provider = "CartoDB.Positron") %>%
-    #   addPolygons(data = wnc_county_data,
-    #               popup = ~ str_extract(NAME, "^([^,]*)"),
-    #               stroke = TRUE,
-    #               smoothFactor = .5,
-    #               fillColor = "white",
-    #               color = "darkblue",
-    #               weight = 2) %>%
-    #   addPolygons(data = wnc_zcta_data,
-    #               popup = ~ str_extract(NAME, "^([^,]*)"),
-    #               stroke = TRUE,
-    #               smoothFactor = .5,
-    #               fillColor = "white",
-    #               color = "darkred",
-    #               weight = 1)
+![](README_files/figure-markdown_strict/base_maps-1.png)
 
     ## Total Population
     # Add in Density
@@ -237,7 +168,7 @@ Here are all the available variables.
                              labels = comma) +
       scale_fill_continuous(name = "Total Population",
                             labels = comma) +
-      theme(legend.position = c(.25, .75)) +
+      theme(legend.position = c(0, 1)) +
       theme_null()
 
     county_2 <- ggplot() +
@@ -251,7 +182,7 @@ Here are all the available variables.
 
     plot_grid(county_1, county_2)
 
-![](README_files/figure-markdown_strict/population-2.png)
+![](README_files/figure-markdown_strict/base_maps-2.png)
 
     zcta_1 <- ggplot() +
       geom_sf(data = wnc_zcta_data, aes(col = B01003_001E, fill = B01003_001E)) +
@@ -259,7 +190,7 @@ Here are all the available variables.
                              labels = comma) +
       scale_fill_continuous(name = "Total Population",
                             labels = comma) +
-      theme(legend.position = c(.25, .75)) +
+      theme(legend.position = c(0, 1)) +
       theme_null()
 
     zcta_2 <- ggplot() +
@@ -268,9 +199,9 @@ Here are all the available variables.
                              labels = comma) +  
       scale_fill_continuous(name = "Population Density",
                             labels = comma) +  
-      theme(legend.position = c(.25, .75)) +  
+      theme(legend.position = c(0, 1)) +  
       theme_null()
 
     plot_grid(zcta_1, zcta_2)
 
-![](README_files/figure-markdown_strict/population-3.png)
+![](README_files/figure-markdown_strict/base_maps-3.png)
