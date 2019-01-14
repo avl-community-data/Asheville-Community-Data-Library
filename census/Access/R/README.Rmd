@@ -9,10 +9,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Packages
 
-One of the best packages for pulling census data is `tidycensus`.  Other useful packages include `here` for file directory support, `tidyverse` for data manipulation, and `ggplot` for graphs.
+One of the best packages for pulling census data is `tidycensus`.  More information about this package can be found at the creater's (site)[https://walkerke.github.io/tidycensus/].  This tutorial will cover the basics and focus on western North Carolina.  Other useful packages include `here` for file directory support, `tidyverse` for data manipulation, and `ggplot2` for graphs.
 
 ```{r packages, message = FALSE}
 library(here)
+library(ggplot2)
 library(tidyverse)
 
 library(tidycensus)
@@ -76,29 +77,16 @@ get_vars <- data.frame( name = c(
   "B03002_011E",
   "B03002_012E"))
 
-get_vars <- get_vars %>%
-  left_join(acs_vars, by = "name")
-
-# Clean up
-get_vars$label <- gsub("Estimate|!|,|\\$", "", get_vars$label)
-get_vars$label <- ifelse(get_vars$label != "Total", gsub("Total", "", get_vars$label), get_vars$label)
-get_vars$label <- gsub("\\(([^\\)]+)\\)||Civilian labor force", "", get_vars$label)
-get_vars$concept <- gsub("\\(([^\\)]+)\\)", "", get_vars$concept)
-get_vars$label <- tolower(get_vars$label)
-get_vars$concept <- tolower(get_vars$concept)
-get_vars$label <- gsub(" ", "_", get_vars$label)
-get_vars$concept <- gsub(" ", "_", get_vars$concept)
-get_vars$label <- paste(get_vars$concept, get_vars$label, sep = "_")
-get_vars$concept <- NULL
-
-get_vars
+head(acs_vars)
 ```
 
 ## Pull data
 
-The following code pulls the data from the census.  For North Carolina, the the STATE value is 37.  The zcta_county_rel_10.txt file came from the census website [here](https://www.census.gov/geo/maps-data/data/zcta_rel_layout.html).  More information about zip code tabulation area can be found [here](https://www.census.gov/geo/reference/zctas.html).
+The following code pulls the data from the census.  For North Carolina, the the STATE value is 37.  The zcta_county_rel_10.txt file came from the census website [here](https://www.census.gov/geo/maps-data/data/zcta_rel_layout.html).  
 
-```{r population, message = FALSE}
+ZIP Code Tabulation Areas (ZCTAs) are similar to ZIP Codes but useful for census data.  More information about zip code tabulation area can be found [here](https://www.census.gov/geo/reference/zctas.html).
+
+```{r zcta, message = FALSE}
 ## ZCTA
 # Close to Zip Code
 zcta_county_match <- read.table(here::here("census", "Access", "R", "zcta_county_rel_10.txt"), # Get this file from census website
@@ -112,7 +100,11 @@ wnc_zcta_data <- get_acs(geography = "zip code tabulation area",
                                geometry = TRUE,
                                output = "wide")
 wnc_zcta_data <- wnc_zcta_data[wnc_zcta_data$GEOID %in% zcta_county_match$ZCTA5,
-                                           names(wnc_zcta_data) %in% c("NAME", "GEOID", "geometry", get_vars$name)]
+                                           names(wnc_zcta_data) %in% c("NAME", "GEOID", "geometry",
+                                                                       as.character(get_vars$name))]
+```
+
+```{r counties}
 
 ## Counties
 wnc_county_data <- reduce(
@@ -123,10 +115,12 @@ wnc_county_data <- reduce(
   rbind
 )
 
-wnc_county_data <- wnc_county_data[, names(wnc_county_data) %in% c("NAME", "GEOID", "geometry", get_vars$name)]
+wnc_county_data <- wnc_county_data[, names(wnc_county_data) %in% c("NAME", "GEOID", "geometry", as.character(get_vars$name))]
 ```
 
-```{r base_maps}
+This map shows how the ZCTA and counties overlay each other.
+
+```{r base_map}
 ### Investigate
 
 # Base Maps
@@ -136,37 +130,15 @@ ggplot() +
   ggtitle("Base Map") +
   theme_null() +
   labs(caption = "Counties are thick dark blue lines.\nZCTA are thin red lines.")
+```
 
+This map shows population total and density for western NC ZTCA's.
+
+```{r zcta_pop}
 ## Total Population
-# Add in Density
-wnc_county_data <- wnc_county_data %>%
-  mutate(area = as.numeric(set_units(st_area(geometry), mi^2)),
-  density = as.numeric(B01003_001E / set_units(st_area(geometry), mi^2)))
-
 wnc_zcta_data <- wnc_zcta_data %>%
   mutate(area = as.numeric(set_units(st_area(geometry), mi^2)),
          density = as.numeric(B01003_001E / set_units(st_area(geometry), mi^2)))
-
-# County
-county_1 <- ggplot() +
-  geom_sf(data = wnc_county_data, aes(col = B01003_001E, fill = B01003_001E)) +
-  scale_color_continuous(name = "Total Population",
-                         labels = comma) +
-  scale_fill_continuous(name = "Total Population",
-                        labels = comma) +
-  theme(legend.position = c(0, 1)) +
-  theme_null()
-
-county_2 <- ggplot() +
-  geom_sf(data = wnc_county_data, aes(col = density, fill = density)) +
-  scale_color_continuous(name = "Population Density",
-                         labels = comma) +
-  scale_fill_continuous(name = "Population Density",
-                        labels = comma) +
-  theme(legend.position = c(.25, .75)) +
-  theme_null()
-
-plot_grid(county_1, county_2)
 
 zcta_1 <- ggplot() +
   geom_sf(data = wnc_zcta_data, aes(col = B01003_001E, fill = B01003_001E)) +
@@ -187,4 +159,69 @@ zcta_2 <- ggplot() +
   theme_null()
 
 plot_grid(zcta_1, zcta_2)
+```
+
+This map shows population total and density for western NC counties.
+
+```{r county_pop}
+# Add in Density
+wnc_county_data <- wnc_county_data %>%
+  mutate(area = as.numeric(set_units(st_area(geometry), mi^2)),
+  density = as.numeric(B01003_001E / set_units(st_area(geometry), mi^2)))
+
+# County
+county_1 <- ggplot() +
+  geom_sf(data = wnc_county_data, aes(col = B01003_001E, fill = B01003_001E)) +
+  scale_color_continuous(name = "Total Population",
+                         labels = comma) +
+  scale_fill_continuous(name = "Total Population",
+                        labels = comma) +
+  theme(legend.position = c(0, 1)) +
+  theme_null()
+
+county_2 <- ggplot() +
+  geom_sf(data = wnc_county_data, aes(col = density, fill = density)) +
+  scale_color_continuous(name = "Population Density",
+                         labels = comma) +
+  scale_fill_continuous(name = "Population Density",
+                        labels = comma) +
+  theme(legend.position = c(0, 1)) +
+  theme_null()
+
+plot_grid(county_1, county_2)
+```
+
+The follow code pulls data for census block for Buncombe County.
+
+```{r buncombe}
+buncombe_cb_data <- get_acs(geography = "block group",
+                         variables = get_vars$name,
+                         geometry = TRUE,
+                         output = "wide",
+                         state = 37,
+                         county = "Buncombe")
+
+buncombe_cb_data <- buncombe_cb_data %>%
+  mutate(area = as.numeric(set_units(st_area(geometry), mi^2)),
+         density = as.numeric(B01003_001E / set_units(st_area(geometry), mi^2)))
+
+cb_1 <- ggplot() +
+  geom_sf(data = buncombe_cb_data, aes(col = B01003_001E, fill = B01003_001E)) +
+  scale_color_continuous(name = "Total Population",
+                         labels = comma) +
+  scale_fill_continuous(name = "Total Population",
+                        labels = comma) +
+  theme(legend.position = c(0, 1)) +
+  theme_null()
+
+cb_2 <- ggplot() +
+  geom_sf(data = buncombe_cb_data, aes(col = density, fill = density)) +
+  scale_color_continuous(name = "Population Density",
+                         labels = comma) +
+  scale_fill_continuous(name = "Population Density",
+                        labels = comma) +
+  theme(legend.position = c(0, 1)) +
+  theme_null()
+
+plot_grid(cb_1, cb_2)
 ```
