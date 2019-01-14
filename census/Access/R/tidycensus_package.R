@@ -28,7 +28,7 @@ counties <- read.csv(here::here("census", "Access", "R", "nc_counties.csv"))
 counties <- counties %>% filter(WNC == 1)
 
 ## You'll need to get your own API key
-census_api_key("KEY GOES HERE", install = TRUE)
+# census_api_key("KEY GOES HERE", install = TRUE)
 
 ## See variables
 acs_vars <- load_variables(2016, "acs5", cache = TRUE)
